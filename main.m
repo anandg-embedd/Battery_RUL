@@ -31,23 +31,25 @@ clc;
 % data = (x - [ones(size(x, 1), 1) * Zmin]) ./ ([ones(size(x, 1), 1) * Zmax] - [ones(size(x, 1), 1) * Zmin]);
 % x_test = data(LengthOfTimeSeries + 1:LengthOfTimeSeries + PredictHorizon);
 
-load henondata x;
+%load henondata x;
+filename='Battery_RUL.csv';
+x = readmatrix( filename );
 NumberOfInputs = 1;
 LengthOfTimeSeries =501;
 PredictHorizon = 100;
-data = x(1:LengthOfTimeSeries);
+%data = x(1:LengthOfTimeSeries,:);
 lambda = 0.0;
 Z = x;
 Zmin = min(Z); Zmax = max(Z);
-data = (x - [ones(size(x, 1), 1) * Zmin]) ./ ([ones(size(x, 1), 1) * Zmax] - [ones(size(x, 1), 1) * Zmin]);
-x_test = data(LengthOfTimeSeries + 1:LengthOfTimeSeries + PredictHorizon);
+data = (x -  Zmin) ./ (Zmax -  Zmin);
+x_test = data(LengthOfTimeSeries + 1:LengthOfTimeSeries + PredictHorizon,:);
 
 
 X = []; y = []; k = 0; loop = 1;
 while loop
     k = k + 1;
-    X = [X; data(k+0:k+NumberOfInputs-1)];
-    y = [y; data(k+NumberOfInputs)];
+    X = [X; data(k+0:k+NumberOfInputs-1,2:end-1)];
+    y = [y; data(k+NumberOfInputs,end)];
     if k+NumberOfInputs >= LengthOfTimeSeries; loop = 0; end
 end
 
@@ -66,7 +68,7 @@ num_valdata = size(val_in, 1);
 
 
 
-d = 1; % Her t adimda 1 input.
+d = size(X,2); % Her t adimda 1 input.
 q = 1;
 tau = 5; % tBPTT constant for unfolding
 
@@ -89,7 +91,7 @@ for N = 1:N_max
     %  --------- GLOROT UNIFROM WEIGHT INITILIZATION -----------
     Whh = unifrnd(-w_limit, w_limit, [N, N]); %Hidden-hidden arasi weight matrisi
     Wih = unifrnd(-w_limit, w_limit, [N, d]); %Input-hidden     ""     
-    Who = unifrnd(-w_limit, w_limit, [q, N]); %Hidden-output    ""
+    Who = unifrnd(-w_limit, w_limit, [d, N]); %Hidden-output    ""
     bh = rand(N,1);                           %hidden bias      ""
 
     Wih_old = Wih;
@@ -100,7 +102,7 @@ for N = 1:N_max
     Theta = [Wih, Whh, Who', bh]; % PARAMETERS TO TRAIN
 
     % --------- Forwardpass and initial error calculation -----------
-    ht = zeros(N, 1); zt = []; o = [];
+    ht = zeros(N, 1, d); zt = []; o = [];
     for k = 1:num_trdata
         [o, ht, zt] = forward(train_in, Wih, Whh, Who, bh, ht, zt, o, k);
     end
@@ -117,15 +119,14 @@ for N = 1:N_max
         n_max = 200;
     end
 
-    while n < n_max
-        
+    while n < n_max        
         
         
         
         % % --------- Backpropagation Through Time -----------
         [dWih, dWhh, dWho, dbh, del_t] = bptt(Wih, Whh, Who, ht, zt, o, train_out, train_in, tau, k);
 
-        dTheta = [dWih,dWhh,dWho',dbh];
+        dTheta = [dWih;dWhh;dWho;dbh];
         % --------- Gradient descent ile Parametre Update -----------
         [Theta] = gradDes(learning_rate, dTheta, Theta);
 

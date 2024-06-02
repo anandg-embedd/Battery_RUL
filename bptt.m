@@ -19,19 +19,19 @@ function [dWih, dWhh, dWho, dbh, dz_t] = bptt(Wih, Whh, Who, ht, zt, o, train_ou
        
 
         if t == T 
-            dz_t = [dz_t, Who'* do_t(t) .* dtanh(zt(:,t))]; % Who'*do_t = dht sadece T adiminda bu yapilicak
+            dz_t(:,:,ind+1) =  Who'* do_t(t) .* dtanh(squeeze(zt(:,:,t))); % Who'*do_t = dht sadece T adiminda bu yapilicak
             
         else
-            dz_t = [dz_t, (Who'*do_t(t)+Whh'*dz_t(:,ind)) .* dtanh(zt(:,t))]; % T --> t_1 giderken 
+            ,dz_t(:,:,ind+1) =  (Who'*do_t(t)+Whh'*squeeze(dz_t(:,:,ind))) .* dtanh(squeeze(zt(:,:,t))); % T --> t_1 giderken 
            % yani zamanda geriye giderken arkadakilerde hesaba katilir, ex: dz_T-1 hesabinda dz_T vs.
         end
         ind = ind + 1;
         
         % T'den t_1 e kadar olan tum gradientler toplanir.
-        dWih = dWih + dz_t(:, ind) * train_in(t);
-        dWhh = dWhh + dz_t(:, ind) * ht(:, t)';
-        dWho = dWho + do_t(t) * ht(:, t+1)';
-        dbh = dbh + dz_t(:,ind);
+        dWih = dWih + squeeze(dz_t(:,:, ind)) .* train_in(t,:);
+        dWhh = dWhh + squeeze(dz_t(:,:, ind)) .* squeeze(ht(:, t, :))';
+        dWho = dWho + do_t(t,:) .* squeeze(ht(:, t+1,:))';
+        dbh = dbh + squeeze(dz_t(:,:,ind));
 
 
         
